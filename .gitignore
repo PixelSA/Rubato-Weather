@@ -1,0 +1,11 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+# Local secret environment variables
+.env
+
+# Virtual environment folder 
+venv/
+.venv/
+
+# Python compiled files
+__pycache__/
+*.pyc
