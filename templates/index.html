@@ -17,6 +17,7 @@
 
         function WeatherApp() {
             const [weather, setWeather] = useState('');
+            const [temperature, setTemperature] = useState('');
             const [songTitle, setSongTitle] = useState('');
             const [artist, setArtist] = useState('');
             const [albumArt, setAlbumArt] = useState('');
@@ -58,6 +59,7 @@
                                         return;
                                     }
                                     setWeather(data.weather);
+                                    setTemperature(data.temperature);
                                     setSongTitle(data.song_title);
                                     setArtist(data.artist);
                                     setAlbumArt(data.album_art);
@@ -130,14 +132,13 @@
                     weather && React.createElement(
                         'div',
                         { className: 'weather-card' },
-                        React.createElement(
-                            'div',
-                            { className: 'weather-info' },
-                            React.createElement('h2', { className: 'weather-condition' }, weather),
-                            React.createElement('p', { className: 'weather-text' }, 'Current local conditions')
-                        ),
-                        
-                        songTitle && React.createElement(
+                            React.createElement(
+                                'div',
+                                { className: 'weather-info' },
+                                React.createElement('h2', { className: 'weather-condition' }, weather),
+                                React.createElement('p', { className: 'temperature' }, `Temperature: ${temperature}°C`),
+                                React.createElement('p', { className: 'weather-text' }, 'Current local conditions')
+                            ),                        songTitle && React.createElement(
                             'div',
                             { className: 'music-recommendation' },
                             React.createElement('h3', { className: 'rec-title' }, 'Your Sound Track'),

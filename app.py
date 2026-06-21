@@ -1,7 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import random
+import json
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 import os
 
 load_dotenv()
@@ -9,8 +12,7 @@ load_dotenv()
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
-
-# ⚠️ PASTE YOUR SPOTIFY CREDENTIALS HERE
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
@@ -36,17 +38,17 @@ def search_spotify_track(keyword, token):
         "Authorization": f"Bearer {token}"
     }
     
-    # Example: "lofi rainy day genre:chill" or "summer pop genre:pop"
-    genre_mapping = "genre:chill" if "rain" in keyword or "cloud" in keyword else "genre:pop"
-    full_query = f"{keyword} {genre_mapping}"
+    # genre_mapping = "genre:chill" if "rain" in keyword or "cloud" in keyword else "genre:pop"
+    full_query = f"{keyword}"
     
     params = {
         "q": full_query,
         "type": "track",
-        "limit": 5
+        "limit": 1
     }
     
     response = requests.get(search_url, headers=headers, params=params).json()
+    print(f"DEBUG: Spotify Search Response for '{full_query}': {response}")
     
     try:
         tracks = response.get('tracks', {}).get('items', [])
@@ -68,6 +70,7 @@ def search_spotify_track(keyword, token):
 def get_weather_playlist_keyword(weather_text, is_day):
     """Maps WeatherAPI text and time of day to a music search query"""
     weather_text = weather_text.lower()
+
     
     if "rain" in weather_text or "drizzle" in weather_text or "mist" in weather_text:
         if is_day == 0: return "midnight jazz lofi"
@@ -84,6 +87,29 @@ def get_weather_playlist_keyword(weather_text, is_day):
     
     return "chill atmospheric beats"
 
+def get_gemini_music_recommendation(weather_text, is_day, temperature) -> list[str]:
+    client = genai.Client()
+    if is_day:
+        time_of_day = "daytime"
+    else:
+        time_of_day = "nighttime"
+
+    prompt = (
+        f"Give me a list of 5 great song recommendations for the following atmosphere: "
+        f"Weather is {weather_text}, it is {time_of_day}, and the temperature is {temperature}."
+    )
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=list[str],  # Enforces a clean, flat list layout
+            temperature=0.7
+        ),
+    )
+    
+    return json.loads(response.text)
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -100,12 +126,16 @@ def get_weather_music():
         # 1. Fetch current weather from WeatherAPI
         weather_url = f"http://api.weatherapi.com/v1/current.json?key={WEATHER_API_KEY}&q={lat},{lon}&aqi=no"
         weather_response = requests.get(weather_url).json()
+
+        print(weather_response)
         
         weather_condition = weather_response['current']['condition']['text']
+        temperature = weather_response['current']['temp_c']
         is_day = weather_response['current']['is_day'] 
         
-        # 2. Get your matching search string
-        search_keyword = get_weather_playlist_keyword(weather_condition, is_day)
+        # 2. Get matching search string
+        titles = get_gemini_music_recommendation(weather_condition, is_day, temperature)
+        search_keyword = random.choice(titles) if titles else get_weather_playlist_keyword(weather_condition, is_day)
         
         # 3. Connect to Spotify and pull live track data
         spotify_token = get_spotify_token()
@@ -122,6 +152,7 @@ def get_weather_music():
         # 4. Return the complete package to React
         return jsonify({
             "weather": weather_condition,
+            "temperature": temperature,
             "is_day": is_day,
             "song_title": music_data["song_title"],
             "artist": music_data["artist"],
