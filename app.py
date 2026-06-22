@@ -3,8 +3,7 @@ import requests
 import random
 import json
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import os
 
 load_dotenv()
@@ -87,28 +86,36 @@ def get_weather_playlist_keyword(weather_text, is_day):
     return "chill atmospheric beats"
 
 def get_gemini_music_recommendation(weather_text, is_day, temperature) -> list[str]:
-    client = genai.Client()
-    if is_day:
-        time_of_day = "daytime"
-    else:
-        time_of_day = "nighttime"
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        
+        if is_day:
+            time_of_day = "daytime"
+        else:
+            time_of_day = "nighttime"
 
-    prompt = (
-        f"Give me a list of 5 great song recommendations for the following atmosphere: "
-        f"Weather is {weather_text}, it is {time_of_day}, and the temperature is {temperature}."
-    )
+        prompt = (
+            f"Give me a list of 5 great song recommendations for the following atmosphere: "
+            f"Weather is {weather_text}, it is {time_of_day}, and the temperature is {temperature}. "
+            f"Return ONLY a JSON array of song titles and artists with keys 'song_title' and 'artist'. Do not include conversational filler. "
+            f"Example: [{{'song_title': 'Holocene', 'artist': 'Bon Iver'}}, {{'song_title': 'Starman', 'artist': 'David Bowie'}}]"
+        )
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=list[str],  # Enforces a clean, flat list layout
-            temperature=0.7
-        ),
-    )
-    
-    return json.loads(response.text)
+        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        print(response.text)
+        
+        # Try to parse the response as JSON
+        try:
+            result = json.loads(response.text)
+            #print(f"Gemini response parsed as JSON: {result}")
+            return result if isinstance(result, list) else [response.text]
+        except json.JSONDecodeError:
+            # Fallback if response isn't valid JSON
+            return [response.text]
+    except Exception as e:
+        print(f"Gemini API error: {e}")
+        return []
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -125,15 +132,20 @@ def get_weather_music():
         # 1. Fetch current weather from WeatherAPI
         weather_url = f"http://api.weatherapi.com/v1/current.json?key={WEATHER_API_KEY}&q={lat},{lon}&aqi=no"
         weather_response = requests.get(weather_url).json()
-        #print(weather_response)
         
         weather_condition = weather_response['current']['condition']['text']
         temperature = weather_response['current']['temp_c']
         is_day = weather_response['current']['is_day'] 
         
         # 2. Get matching search string
-        titles = get_gemini_music_recommendation(weather_condition, is_day, temperature)
-        search_keyword = random.choice(titles) if titles else get_weather_playlist_keyword(weather_condition, is_day)
+        result = get_gemini_music_recommendation(weather_condition, is_day, temperature)
+        # print(f"DEBUG: Gemini raw result: {result}")
+        choice = random.choice(result) if result else None
+        artist = choice["artist"] if choice else None
+        title = choice["song_title"] if choice else None
+        search_keyword = f"track:{title} artist:{artist}" if result else get_weather_playlist_keyword(weather_condition, is_day)
+
+        # print(f"DEBUG: Gemini result: {result}, Search keyword: {search_keyword}")
         
         # 3. Connect to Spotify and pull live track data
         spotify_token = get_spotify_token()
