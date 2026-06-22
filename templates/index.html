@@ -10,183 +10,187 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div id="root"></div>
+<div id="root"></div>
 
-   <script>
-        const { useState } = React;
+<script>
+const { useState } = React;
 
-        function WeatherApp() {
-            const [weather, setWeather] = useState('');
-            const [temperature, setTemperature] = useState('');
-            const [songTitle, setSongTitle] = useState('');
-            const [artist, setArtist] = useState('');
-            const [albumArt, setAlbumArt] = useState('');
-            const [previewUrl, setPreviewUrl] = useState('');
-            const [spotifyUrl, setSpotifyUrl] = useState('');
-            const [loading, setLoading] = useState(false);
-            const [backgroundClass, setBackgroundClass] = useState('clear-day');
+function WeatherApp() {
+    const [weather, setWeather] = useState('');
+    const [temperature, setTemperature] = useState('');
+    const [songTitle, setSongTitle] = useState('');
+    const [artist, setArtist] = useState('');
+    const [albumArt, setAlbumArt] = useState('');
+    const [previewUrl, setPreviewUrl] = useState('');
+    const [spotifyUrl, setSpotifyUrl] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [backgroundClass, setBackgroundClass] = useState('clear-day');
+    const [accentColor] = useState('#1DB954');
+    const [moodText, setMoodText] = useState('');
+    const [isRaining, setIsRaining] = useState(false);
 
-            const getWeatherBackgroundClass = (weatherText, isDay) => {
-                const condition = weatherText.toLowerCase();
-                if (condition.includes('rain') || condition.includes('drizzle') || condition.includes('mist')) {
-                    return isDay ? 'rainy-day' : 'rainy-night';
-                } else if (condition.includes('thunder') || condition.includes('storm')) {
-                    return 'stormy';
-                } else if (condition.includes('snow') || condition.includes('sleet')) {
-                    return 'snowy';
-                } else if (condition.includes('cloud') || condition.includes('overcast')) {
-                    return isDay ? 'cloudy-day' : 'cloudy-night';
-                } else if (condition.includes('sunny') || condition.includes('clear')) {
-                    return isDay ? 'clear-day' : 'clear-night';
-                }
-                return isDay ? 'clear-day' : 'clear-night';
-            };
+    const getWeatherMood = (weatherText) => {
+        const condition = weatherText.toLowerCase();
+        console.log(condition);
 
-            const getLocationAndData = () => {
-                setLoading(true);
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            const lat = position.coords.latitude;
-                            const lon = position.coords.longitude;
+        if (condition.includes("rain") || condition.includes("drizzle") || condition.includes("mist"))
+            return { icon: "🌧️", mood: "Reflective & atmospheric" };
 
-                            fetch(`/api/get-weather-music?lat=${lat}&lon=${lon}`)
-                                .then(res => res.json())
-                                .then(data => {
-                                    if(data.error) {
-                                        alert("API Error: " + data.error);
-                                        setLoading(false);
-                                        return;
-                                    }
-                                    setWeather(data.weather);
-                                    setTemperature(data.temperature);
-                                    setSongTitle(data.song_title);
-                                    setArtist(data.artist);
-                                    setAlbumArt(data.album_art);
-                                    setPreviewUrl(data.preview_url);
-                                    setSpotifyUrl(data.spotify_url);
-                                    setBackgroundClass(getWeatherBackgroundClass(data.weather, data.is_day));
-                                    setLoading(false);
-                                })
-                                .catch(err => {
-                                    console.error("Fetch failure:", err);
-                                    setLoading(false);
-                                });
-                        },
-                        (error) => {
-                            alert("Geolocation failed: " + error.message);
-                            setLoading(false);
-                        }
-                    );
-                } else {
-                    alert("Geolocation is not supported by this browser.");
-                    setLoading(false);
-                }
-            };
+        if (condition.includes("storm") || condition.includes("thunder"))
+            return { icon: "⛈️", mood: "Powerful & dramatic" };
 
-            return React.createElement(
+        if (condition.includes("snow"))
+            return { icon: "❄️", mood: "Cozy & peaceful" };
+
+        if (condition.includes("cloud"))
+            return { icon: "☁️", mood: "Dreamy & relaxed" };
+
+        return { icon: "☀️", mood: "Bright & energetic" };
+    };
+
+    const getWeatherBackgroundClass = (weatherText, isDay) => {
+        const condition = weatherText.toLowerCase();
+        if (condition.includes('rain') || condition.includes('drizzle') || condition.includes('mist')) {
+            return isDay ? 'rainy-day' : 'rainy-night';
+        } else if (condition.includes('thunder') || condition.includes('storm')) {
+            return 'stormy';
+        } else if (condition.includes('snow') || condition.includes('sleet')) {
+            return 'snowy';
+        } else if (condition.includes('cloud') || condition.includes('overcast')) {
+            return isDay ? 'cloudy-day' : 'cloudy-night';
+        } else if (condition.includes('sunny') || condition.includes('clear')) {
+            return isDay ? 'clear-day' : 'clear-night';
+        }
+        return isDay ? 'clear-day' : 'clear-night';
+    };
+
+    const getLocationAndData = () => {
+        setLoading(true);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                fetch(`/api/get-weather-music?lat=${position.coords.latitude}&lon=${position.coords.longitude}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setWeather(data.weather);
+                        setTemperature(data.temperature);
+                        setSongTitle(data.song_title);
+                        setArtist(data.artist);
+                        setAlbumArt(data.album_art);
+                        setPreviewUrl(data.preview_url);
+                        setSpotifyUrl(data.spotify_url);
+
+                        const mood = getWeatherMood(data.weather);
+                        setMoodText(mood.mood);
+                        
+                        // Check if it's raining
+                        const isRainingCondition = data.weather.toLowerCase().includes('rain') || 
+                                                   data.weather.toLowerCase().includes('drizzle');
+                        setIsRaining(isRainingCondition);
+
+                        setBackgroundClass(getWeatherBackgroundClass(data.weather, data.is_day));
+                        setLoading(false);
+                    })
+                    .catch(() => setLoading(false));
+            },
+            () => setLoading(false)
+        );
+    };
+
+    return React.createElement(
+        'div',
+        { className: `app-container ${backgroundClass}` },
+
+        // Rain animation overlay
+        isRaining && React.createElement('div', { className: 'rain-container' },
+            Array.from({ length: 50 }).map((_, i) =>
+                React.createElement('div', {
+                    key: i,
+                    className: 'rain-drop',
+                    style: {
+                        left: `${Math.random() * 100}%`,
+                        animationDelay: `${Math.random() * 0.5}s`,
+                        animationDuration: `${0.5 + Math.random() * 0.3}s`
+                    }
+                })
+            )
+        ),
+
+        React.createElement(
+            'div',
+            { className: 'content' },
+
+            React.createElement('h1', null, 'Rubato Weather'),
+            React.createElement('p', null, 'Discover music that resonates with your surroundings'),
+
+            React.createElement(
+                'button',
+                { className: 'btn-primary', onClick: getLocationAndData, disabled: loading },
+                loading ? 'Analyzing Sky & Tracks...' : 'Sync Environment & Audio'
+            ),
+
+            weather && React.createElement(
                 'div',
-                { className: `app-container ${backgroundClass}` },
-                
-                // Visual Layer Backdrops
+                {
+                    className: 'weather-card animate-card',
+                    style: { '--accent': accentColor }
+                },
+
                 React.createElement(
-                    'div',
-                    { className: 'background-animation' },
-                    (backgroundClass === 'rainy-day' || backgroundClass === 'rainy-night') && 
-                        React.createElement(React.Fragment, null, 
-                            React.createElement('div', { className: 'rain' }),
-                            React.createElement('div', { className: 'cloud cloud-1' })
-                        ),
-                    backgroundClass === 'stormy' && 
-                        React.createElement(React.Fragment, null, 
-                            React.createElement('div', { className: 'rain heavy-rain' }),
-                            React.createElement('div', { className: 'lightning' })
-                        ),
-                    backgroundClass === 'snowy' && React.createElement('div', { className: 'snowflake' }),
-                    backgroundClass === 'clear-day' && React.createElement('div', { className: 'sun' }),
-                    backgroundClass === 'clear-night' && React.createElement('div', { className: 'moon' }),
-                    (backgroundClass === 'cloudy-day' || backgroundClass === 'cloudy-night') && React.createElement('div', { className: 'cloud cloud-2' })
+                    'h2',
+                    { className: 'weather-condition' },
+                    `${getWeatherMood(weather).icon} ${weather}`
                 ),
 
-                // Core Interface Hub Card
-                React.createElement(
+                React.createElement('p', null, `Temperature: ${temperature}°C`),
+
+                songTitle && React.createElement(
                     'div',
-                    { className: 'content' },
-                    React.createElement(
-                        'header',
-                        { className: 'header' },
-                        React.createElement('h1', { className: 'title' }, 'Rubato Weather'),
-                        React.createElement('p', { className: 'subtitle' }, 'Discover music that resonates with your surroundings')
-                    ),
+                    { className: 'music-recommendation' },
+
+                    albumArt && React.createElement('img', {
+                        src: albumArt,
+                        className: 'album-cover',
+                        style: {
+                            width: '240px',
+                            height: '240px',
+                            borderRadius: '20px',
+                            boxShadow: `0 20px 50px ${accentColor}`,
+                            transition: '0.4s ease'
+                        }
+                    }),
+
+                    React.createElement('h3', null, songTitle),
+                    React.createElement('p', null, `by ${artist}`),
+
+                    previewUrl
+                        ? React.createElement('audio', { src: previewUrl, controls: true })
+                        : React.createElement('p', null, 'Audio preview unavailable.'),
 
                     React.createElement(
-                        'button',
-                        { 
-                            className: 'btn-primary', 
-                            onClick: getLocationAndData,
-                            disabled: loading 
+                        'a',
+                        {
+                            href: spotifyUrl,
+                            target: '_blank',
+                            rel: 'noopener noreferrer',
+                            className: 'spotify-link'
                         },
-                        loading ? 'Analyzing Sky & Tracks...' : 'Sync Environment & Audio'
-                    ),
-
-                    weather && React.createElement(
-                        'div',
-                        { className: 'weather-card' },
-                            React.createElement(
-                                'div',
-                                { className: 'weather-info' },
-                                React.createElement('h2', { className: 'weather-condition' }, weather),
-                                React.createElement('p', { className: 'temperature' }, `Temperature: ${temperature}°C`),
-                                React.createElement('p', { className: 'weather-text' }, 'Current local conditions')
-                            ),                        songTitle && React.createElement(
-                            'div',
-                            { className: 'music-recommendation' },
-                            React.createElement('h3', { className: 'rec-title' }, 'Your Sound Track'),
-                            
-                            // 🖼️ NEW: Album Art Implementation
-                            albumArt && React.createElement('img', { 
-                                src: albumArt, 
-                                alt: 'Album Artwork Cover', 
-                                className: 'album-cover',
-                                style: { width: '180px', height: '180px', borderRadius: '12px', margin: '15px 0', boxShadow: '0 8px 16px rgba(0,0,0,0.3)' }
-                            }),
-
-                            React.createElement(
-                                'div',
-                                { className: 'music-info' },
-                                React.createElement('p', { className: 'song-title', style: { fontWeight: 'bold', margin: '5px 0' } }, songTitle),
-                                React.createElement('p', { className: 'artist-name', style: { margin: '0 0 15px 0', opacity: 0.8 } }, `by ${artist}`)
-                            ),
-
-                            // 🔊 NEW: Native HTML5 Audio Preview player
-                            previewUrl ? React.createElement('audio', { 
-                                src: previewUrl, 
-                                controls: true, 
-                                style: { width: '100%', maxWidth: '280px', marginBottom: '15px' } 
-                            }) : React.createElement('p', { style: { fontSize: '0.85rem', fontStyle: 'italic', opacity: 0.7 } }, '⚠️ Audio preview unavailable for this track.'),
-
-                            // 🔗 NEW: Track redirection redirection target
-                            React.createElement('a', { 
-                                href: spotifyUrl, 
-                                target: '_blank', 
-                                rel: 'noopener noreferrer',
-                                className: 'spotify-link',
-                                style: { display: 'inline-block', background: '#1DB954', color: '#fff', textDecoration: 'none', padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '5px', boxShadow: '0 4px 10px rgba(29,185,84,0.3)' }
-                            }, 'Open in Spotify 🚀')
-                        )
-                    ),
-
-                    !weather && !loading && React.createElement(
-                        'div',
-                        { className: 'welcome-message' },
-                        React.createElement('p', null, 'Allow location access to sync your environment soundtrack.')
+                        'Open in Spotify'
                     )
                 )
-            );
-        }
+            ),
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(WeatherApp));
-    </script>
+            !weather && !loading && React.createElement(
+                'div',
+                { className: 'welcome-message' },
+                React.createElement('h2', null, '🎵 Music changes with weather'),
+                React.createElement('p', null, 'Enable location to discover your soundtrack.')
+            )
+        )
+    );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(WeatherApp));
+</script>
 </body>
 </html>

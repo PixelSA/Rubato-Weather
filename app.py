@@ -48,7 +48,6 @@ def search_spotify_track(keyword, token):
     }
     
     response = requests.get(search_url, headers=headers, params=params).json()
-    print(f"DEBUG: Spotify Search Response for '{full_query}': {response}")
     
     try:
         tracks = response.get('tracks', {}).get('items', [])
@@ -126,8 +125,7 @@ def get_weather_music():
         # 1. Fetch current weather from WeatherAPI
         weather_url = f"http://api.weatherapi.com/v1/current.json?key={WEATHER_API_KEY}&q={lat},{lon}&aqi=no"
         weather_response = requests.get(weather_url).json()
-
-        print(weather_response)
+        #print(weather_response)
         
         weather_condition = weather_response['current']['condition']['text']
         temperature = weather_response['current']['temp_c']
@@ -164,4 +162,4 @@ def get_weather_music():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
